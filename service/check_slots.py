@@ -81,45 +81,62 @@ def check_slots():
         driver.find_element_by_id('subsContinueButton').click()
         time.sleep(click_wait)
 
-        #more_dows = True
         slots_available = False
         available_slots = ""
-        #tomm_delivery_time_ele_list = []
         delivery_time_ele_list = []
 
         while not slots_available:
+            aval_text_div_list = []
+            delivery_time_ele_list = []
+
             time.sleep(click_wait)
             time_delivery_div = driver.find_element_by_class_name('ufss-date-select-container')
+            #print ("Current time_delivery_div: %s" % (str(time_delivery_div)))
             aval_text_div_list = time_delivery_div.find_elements_by_class_name('ufss-date-select-toggle-text-container')
-            for aval_text_div in aval_text_div_list:
-                dow_text = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-day-of-week').text
-                month_day_text = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-month-day').text
-                aval_text = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-availability').text
-                if not re.search("not available", aval_text, re.IGNORECASE):
-                    delivery_time_div_class = delivery_time_div.get_attribute("class")
-                    if re.search("ufss-available", delivery_time_div_class, re.IGNORECASE):
-                        delivery_time_li_list = delivery_time_div.find_elements_by_class_name("ufss-slot-container")
-                        for delivery_time_li in delivery_time_li_list:
-                            delivery_time_ele = delivery_time_li.find_element_by_class_name("ufss-slot-time-window-text")
-                            delivery_time_ele_list.append(delivery_time_ele)
-                            print ("%s; %s Delivery Times: %s" % (dow_text, month_day_text, delivery_time_ele.text))
+            #print ("Current aval_text_div_list: %s" % (str(aval_text_div_list)))
 
-                        win32ui.MessageBox("%s; %s Delivery Times: \n %s" % (dow_text, month_day_text, ",".join(today_delivery_time_ele_list)), "%s; %s Delivery Times" % (dow_text, month_day_text), MB_SYSTEMMODAL)
-                        print ("%s; %s Slots Available!" % (dow_text, month_day_text))
-                        slots_available = True
-                else:
-                    print ('No slots available. Sleeping ...')
-                    more_dows = True
-                    current_time = datetime.datetime.now()
-                    refresh_time = current_time + datetime.timedelta(minutes = (refresh_wait/60))
-                    refresh_time_fmt = refresh_time.strftime("%I:%M:%S%p")
-                    print ('Will Try Again At: %s' % (str(refresh_time_fmt)))
-                    time.sleep(refresh_wait)
-                    driver.refresh()
-        terminate(driver)
+            for aval_text_div in aval_text_div_list:
+                dow_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-day-of-week')
+                dow_text = dow_text_ele.text
+                print ("Current dow_text: %s" % (str(dow_text)))
+                time.sleep(click_wait)
+
+                month_day_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-month-day')
+                month_day_text = month_day_text_ele.text
+                print ("Current month_day_text: %s" % (str(month_day_text)))
+                time.sleep(click_wait)
+
+                aval_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-availability')
+                aval_text = aval_text_ele.text
+                print ("Current aval_text: %s" % (str(aval_text)))
+                time.sleep(click_wait)
+
+            if not re.search("not available", aval_text, re.IGNORECASE):
+                delivery_time_div_class = delivery_time_div.get_attribute("class")
+                if re.search("ufss-available", delivery_time_div_class, re.IGNORECASE):
+                    delivery_time_li_list = delivery_time_div.find_elements_by_class_name("ufss-slot-container")
+                    for delivery_time_li in delivery_time_li_list:
+                        delivery_time_ele = delivery_time_li.find_element_by_class_name("ufss-slot-time-window-text")
+                        delivery_time_ele_list.append(delivery_time_ele)
+                        print ("%s; %s Delivery Times: %s" % (dow_text, month_day_text, delivery_time_ele.text))
+
+                    win32ui.MessageBox("%s; %s Delivery Times: \n %s" % (dow_text, month_day_text, ",".join(today_delivery_time_ele_list)), "%s; %s Delivery Times" % (dow_text, month_day_text), MB_SYSTEMMODAL)
+                    print ("%s; %s Slots Available!" % (dow_text, month_day_text))
+                    slots_available = True
+                    terminate(driver)
+
+            else:
+                print ('No slots available. Sleeping ...')
+                more_dows = True
+                current_time = datetime.datetime.now()
+                refresh_time = current_time + datetime.timedelta(minutes = (refresh_wait/60))
+                refresh_time_fmt = refresh_time.strftime("%I:%M:%S%p")
+                print ('Will Try Again At: %s' % (str(refresh_time_fmt)))
+                time.sleep(refresh_wait)
+                driver.refresh()
 
     except Exception as e:
-        terminate(driver)
+        #terminate(driver)
         raise ValueError(str(e))
 
 if __name__ == "__main__":
