@@ -11,7 +11,7 @@ Going to handle when page refresh causes display page to change back to cart, or
 
 ### Setup
 a p_data.py file needs to be created with the variables EMAIL, PASSWORD, OTP
-this file allows separation for your private date... this can be obfuscated farther if need be...
+this file allows separation for your private date... this can be obfuscated further if need be...
 
 ### Run Code
 ```sh
