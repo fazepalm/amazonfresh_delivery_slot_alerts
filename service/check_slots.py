@@ -35,6 +35,33 @@ def create_driver():
 def terminate(driver):
     driver.quit()
 
+def select_delivery_day(time_slot_btn_list):
+    selected_time_slot_btn_dict = {}
+    for time_slot_btn in time_slot_btn_list:
+        dow_text_ele = time_slot_btn.find_element_by_class_name('ufss-date-select-toggle-text-day-of-week')
+        dow_text = dow_text_ele.text
+        print ("Current dow_text: %s" % (str(dow_text)))
+        time.sleep(click_wait)
+
+        month_day_text_ele = time_slot_btn.find_element_by_class_name('ufss-date-select-toggle-text-month-day')
+        month_day_text = month_day_text_ele.text
+        print ("Current month_day_text: %s" % (str(month_day_text)))
+        time.sleep(click_wait)
+
+        aval_text_ele = time_slot_btn.find_element_by_class_name('ufss-date-select-toggle-text-availability')
+        aval_text = aval_text_ele.text
+        print ("Current aval_text: %s" % (str(aval_text)))
+        time.sleep(click_wait)
+
+        if not re.search("not available", aval_text, re.IGNORECASE):
+            time_slot_btn.click
+            selected_time_slot_btn_dict["btn_element"] = time_slot_btn
+            selected_time_slot_btn_dict["btn_dow"] = dow_text
+            selected_time_slot_btn_dict["btn_month_day"] = month_day_text
+            selected_time_slot_btn_dict["btn_aval"] = aval_text
+
+    return selected_time_slot_btn_dict
+
 def check_slots():
     try:
         print('Creating Chrome Driver ...')
@@ -86,44 +113,40 @@ def check_slots():
         delivery_time_ele_list = []
 
         while not slots_available:
-            aval_text_div_list = []
-            delivery_time_ele_list = []
+            slot_time_dict = {}
+            slot_time_list = []
 
             time.sleep(click_wait)
             time_delivery_div = driver.find_element_by_class_name('ufss-date-select-container')
             #print ("Current time_delivery_div: %s" % (str(time_delivery_div)))
-            aval_text_div_list = time_delivery_div.find_elements_by_class_name('ufss-date-select-toggle-text-container')
+            time_slot_btn_list = time_delivery_div.find_elements_by_tag_name('button')
             #print ("Current aval_text_div_list: %s" % (str(aval_text_div_list)))
+            selected_time_slot_btn_dict = select_delivery_day(time_slot_btn_list)
+            print ("Current selected_time_slot_btn_dict: %s" % (str(selected_time_slot_btn_dict)))
 
-            for aval_text_div in aval_text_div_list:
-                dow_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-day-of-week')
-                dow_text = dow_text_ele.text
-                print ("Current dow_text: %s" % (str(dow_text)))
-                time.sleep(click_wait)
+            if selected_time_slot_btn_dict != {}:
+                time_slot_btn = selected_time_slot_btn_dict.get("btn_element", None)
+                dow_text = selected_time_slot_btn_dict.get("btn_dow", None)
+                month_day_text = selected_time_slot_btn_dict.get("btn_month_day", None)
+                aval_text = selected_time_slot_btn_dict.get("btn_aval", None)
 
-                month_day_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-month-day')
-                month_day_text = month_day_text_ele.text
-                print ("Current month_day_text: %s" % (str(month_day_text)))
-                time.sleep(click_wait)
-
-                aval_text_ele = aval_text_div.find_element_by_class_name('ufss-date-select-toggle-text-availability')
-                aval_text = aval_text_ele.text
-                print ("Current aval_text: %s" % (str(aval_text)))
-                time.sleep(click_wait)
-
-            if not re.search("not available", aval_text, re.IGNORECASE):
-                delivery_time_div_class = delivery_time_div.get_attribute("class")
-                if re.search("ufss-available", delivery_time_div_class, re.IGNORECASE):
-                    delivery_time_li_list = delivery_time_div.find_elements_by_class_name("ufss-slot-container")
-                    for delivery_time_li in delivery_time_li_list:
-                        delivery_time_ele = delivery_time_li.find_element_by_class_name("ufss-slot-time-window-text")
-                        delivery_time_ele_list.append(delivery_time_ele)
-                        print ("%s; %s Delivery Times: %s" % (dow_text, month_day_text, delivery_time_ele.text))
-
-                    win32ui.MessageBox("%s; %s Delivery Times: \n %s" % (dow_text, month_day_text, ",".join(today_delivery_time_ele_list)), "%s; %s Delivery Times" % (dow_text, month_day_text), MB_SYSTEMMODAL)
-                    print ("%s; %s Slots Available!" % (dow_text, month_day_text))
-                    slots_available = True
-                    terminate(driver)
+                slot_select_div = driver.find_element_by_class_name('ufss-slotselect-container')
+                print ("Current slot_select_div: %s" % (str(slot_select_div)))
+                slot_time_div_list = slot_select_div.find_elements_by_class_name('ufss-slotgroup-container')
+                print ("Current slot_time_div_list: %s" % (str(slot_time_div_list)))
+                for slot_time_div in slot_time_div_list:
+                    slot_time_header = slot_time_div.find_element_by_class_name('ufss-slotgroup-heading-container')
+                    slot_time_header_text = slot_time_div.find_element_by_tag_name('h4').text
+                    print ("Current slot_time_header_text: %s" % (str(slot_time_header_text)))
+                    slot_time_text_list = slot_time_div.find_elements_by_class_name('ufss-slot-time-window-text')
+                    for slot_time_text in slot_time_text_list:
+                        print ("Current slot_time_text: %s" % (str(slot_time_text.text)))
+                        slot_time_list.append(slot_time_text)
+                    slot_time_dict[slot_time_header_text] = slot_time_list
+                slots_available = True
+                win32ui.MessageBox("%s; %s Delivery Times: \n %s; %s" % (dow_text, month_day_text, ",".join(slot_time_dict.keys()), ",".join(slot_time_dict.values())), "%s; %s Delivery Times" % (dow_text, month_day_text), MB_SYSTEMMODAL)
+                print ("Current slot_time_dict: %s" % (slot_time_dict))
+                terminate(driver)
 
             else:
                 print ('No slots available. Sleeping ...')
