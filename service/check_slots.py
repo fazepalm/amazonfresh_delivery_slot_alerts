@@ -10,6 +10,8 @@ import win32ui
 import random
 import re
 import traceback
+from collections import defaultdict
+import ctypes
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -62,6 +64,25 @@ def select_delivery_day(time_slot_btn_list):
 
     return selected_time_slot_btn_dict
 
+def get_delivery_times(driver):
+    time_delivery_div = driver.find_element_by_class_name('ufss-date-select-container')
+    #print ("Current time_delivery_div: %s" % (str(time_delivery_div)))
+    time_slot_btn_list = time_delivery_div.find_elements_by_tag_name('button')
+    #print ("Current aval_text_div_list: %s" % (str(aval_text_div_list)))
+    selected_time_slot_btn_dict = select_delivery_day(time_slot_btn_list)
+    print ("Current selected_time_slot_btn_dict: %s" % (str(selected_time_slot_btn_dict)))
+    return selected_time_slot_btn_dict
+
+def checkout_WF(driver):
+    print ("Checkout WholeFoods! \n")
+    time.sleep(click_wait)
+    driver.find_element_by_name('proceedToALMCheckout-VUZHIFdob2xlIEZvb2Rz').click()
+    time.sleep(click_wait)
+    driver.find_element_by_name('proceedToCheckout').click()
+    time.sleep(click_wait)
+    driver.find_element_by_id('subsContinueButton').click()
+    time.sleep(click_wait)
+
 def check_slots():
     try:
         print('Creating Chrome Driver ...')
@@ -99,30 +120,26 @@ def check_slots():
         time.sleep(click_wait)
         driver.find_element_by_id('nav-cart').click()
         time.sleep(click_wait)
-        print ("Checkout WholeFoods! \n")
-        time.sleep(click_wait)
-        driver.find_element_by_name('proceedToALMCheckout-VUZHIFdob2xlIEZvb2Rz').click()
-        time.sleep(click_wait)
-        driver.find_element_by_name('proceedToCheckout').click()
-        time.sleep(click_wait)
-        driver.find_element_by_id('subsContinueButton').click()
-        time.sleep(click_wait)
+        checkout_WF(driver)
 
         slots_available = False
         available_slots = ""
         delivery_time_ele_list = []
 
         while not slots_available:
-            slot_time_dict = {}
+            slot_time_dict = defaultdict(list)
             slot_time_list = []
 
             time.sleep(click_wait)
-            time_delivery_div = driver.find_element_by_class_name('ufss-date-select-container')
-            #print ("Current time_delivery_div: %s" % (str(time_delivery_div)))
-            time_slot_btn_list = time_delivery_div.find_elements_by_tag_name('button')
-            #print ("Current aval_text_div_list: %s" % (str(aval_text_div_list)))
-            selected_time_slot_btn_dict = select_delivery_day(time_slot_btn_list)
-            print ("Current selected_time_slot_btn_dict: %s" % (str(selected_time_slot_btn_dict)))
+            try:
+                selected_time_slot_btn_dict = get_delivery_times(driver)
+            except:
+                try:
+                    checkout_WF(driver)
+                    selected_time_slot_btn_dict = get_delivery_times(driver)
+                    continue
+                except:
+                    traceback.print_exc(file=sys.stdout)
 
             if selected_time_slot_btn_dict != {}:
                 time_slot_btn = selected_time_slot_btn_dict.get("btn_element", None)
@@ -141,12 +158,15 @@ def check_slots():
                     slot_time_text_list = slot_time_div.find_elements_by_class_name('ufss-slot-time-window-text')
                     for slot_time_text in slot_time_text_list:
                         print ("Current slot_time_text: %s" % (str(slot_time_text.text)))
-                        slot_time_list.append(slot_time_text)
-                    slot_time_dict[slot_time_header_text] = slot_time_list
+                        slot_time_dict[slot_time_header_text].append(slot_time_text.text)
                 slots_available = True
-                win32ui.MessageBox("%s; %s Delivery Times: \n %s; %s" % (dow_text, month_day_text, ",".join(slot_time_dict.keys()), ",".join(slot_time_dict.values())), "%s; %s Delivery Times" % (dow_text, month_day_text), MB_SYSTEMMODAL)
                 print ("Current slot_time_dict: %s" % (slot_time_dict))
-                terminate(driver)
+                if slot_time_dict != {}:
+                    slot_time_dict_values = list(slot_time_dict.values())[0]
+                    print ("Current slot_time_dict.keys: %s" % (str(slot_time_dict.keys())))
+                    print ("Current slot_time_dict.values: %s" % (str(slot_time_dict_values)))
+                    win32ui.MessageBox("%s; %s Delivery Times: \n %s; %s" % (dow_text, month_day_text, ",".join(slot_time_dict.keys()), ",".join(slot_time_dict_values)), "%s; %s Delivery Times" % (dow_text, month_day_text), 0x40000)
+                    terminate(driver)
 
             else:
                 print ('No slots available. Sleeping ...')
@@ -159,7 +179,7 @@ def check_slots():
                 driver.refresh()
 
     except Exception as e:
-        #terminate(driver)
+        terminate(driver)
         raise ValueError(str(e))
 
 if __name__ == "__main__":
