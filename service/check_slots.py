@@ -6,7 +6,7 @@ from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import p_data
 import datetime
-import win32ui
+import win32gui, win32com.client, win32ui
 import random
 import re
 import traceback
@@ -24,8 +24,11 @@ amazon_password = p_data.PASSWORD
 amazon_otp = p_data.OTP
 
 #int vars
-refresh_wait = 300
+refresh_wait = random.randint(200, 400)
 click_wait = random.randint(1, 3)
+
+def windowEnumerationHandler(hwnd, top_windows):
+    top_windows.append((hwnd, win32gui.GetWindowText(hwnd)))
 
 def create_driver():
     chrome_options = webdriver.ChromeOptions()
@@ -85,9 +88,10 @@ def checkout_WF(driver):
 
 def check_slots():
     try:
+        window_name = "amazon_delivery_slot_alerts"
+        ctypes.windll.kernel32.SetConsoleTitleW(window_name)
         print('Creating Chrome Driver ...')
         driver = create_driver()
-
         print('Logging into Amazon ...')
         driver.get('https://www.amazon.com/gp/sign-in.html')
         email_field = driver.find_element_by_css_selector('#ap_email')
@@ -129,6 +133,7 @@ def check_slots():
         while not slots_available:
             slot_time_dict = defaultdict(list)
             slot_time_list = []
+            top_windows = []
 
             time.sleep(click_wait)
             try:
@@ -140,6 +145,7 @@ def check_slots():
                     continue
                 except:
                     traceback.print_exc(file=sys.stdout)
+                    terminate(driver)
 
             if selected_time_slot_btn_dict != {}:
                 time_slot_btn = selected_time_slot_btn_dict.get("btn_element", None)
@@ -148,9 +154,9 @@ def check_slots():
                 aval_text = selected_time_slot_btn_dict.get("btn_aval", None)
 
                 slot_select_div = driver.find_element_by_class_name('ufss-slotselect-container')
-                print ("Current slot_select_div: %s" % (str(slot_select_div)))
+                #print ("Current slot_select_div: %s" % (str(slot_select_div)))
                 slot_time_div_list = slot_select_div.find_elements_by_class_name('ufss-slotgroup-container')
-                print ("Current slot_time_div_list: %s" % (str(slot_time_div_list)))
+                #print ("Current slot_time_div_list: %s" % (str(slot_time_div_list)))
                 for slot_time_div in slot_time_div_list:
                     slot_time_header = slot_time_div.find_element_by_class_name('ufss-slotgroup-heading-container')
                     slot_time_header_text = slot_time_div.find_element_by_tag_name('h4').text
@@ -163,9 +169,24 @@ def check_slots():
                 print ("Current slot_time_dict: %s" % (slot_time_dict))
                 if slot_time_dict != {}:
                     slot_time_dict_values = list(slot_time_dict.values())[0]
-                    print ("Current slot_time_dict.keys: %s" % (str(slot_time_dict.keys())))
-                    print ("Current slot_time_dict.values: %s" % (str(slot_time_dict_values)))
-                    win32ui.MessageBox("%s; %s Delivery Times: \n %s; %s" % (dow_text, month_day_text, ",".join(slot_time_dict.keys()), ",".join(slot_time_dict_values)), "%s; %s Delivery Times" % (dow_text, month_day_text), 0x40000)
+                    #print ("Current slot_time_dict.keys: %s" % (str(slot_time_dict.keys())))
+                    #print ("Current slot_time_dict.values: %s" % (str(slot_time_dict_values)))
+                    current_time = datetime.datetime.now()
+                    current_time_fmt = current_time.strftime("%I:%M:%S%p")
+                    print ("Found Delivery Time At: %s" % (str(current_time_fmt)))
+                    win32gui.EnumWindows(windowEnumerationHandler, top_windows)
+                    console_win = [win for win in top_windows if re.search(window_name, str(win), re.IGNORECASE)]
+                    shell = win32com.client.Dispatch("WScript.Shell")
+                    shell.SendKeys('%')
+                    win32gui.ShowWindow(console_win[0][0], 9)
+                    win32gui.SetForegroundWindow(console_win[0][0])
+                    shot_time_key_str = ",".join(slot_time_dict.keys())
+                    shot_time_values_str = ",".join(slot_time_dict_values)
+                    win32ui.MessageBox(
+                                        "%s; %s Delivery Times: \n %s; %s" % (dow_text, month_day_text, shot_time_key_str, shot_time_values_str),
+                                        "%s; %s Delivery Times" % (dow_text, month_day_text),
+                                        0x40000
+                                        )
                     terminate(driver)
 
             else:
@@ -179,8 +200,10 @@ def check_slots():
                 driver.refresh()
 
     except Exception as e:
-        terminate(driver)
+
         raise ValueError(str(e))
 
 if __name__ == "__main__":
+    check_slots()
+
     check_slots()
